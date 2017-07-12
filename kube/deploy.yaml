@@ -19,9 +19,9 @@ spec:
         resources:
           limits:
             cpu: 50m
-            memory: 100Mi
+            memory: 20Mi
           requests:
             cpu: 50m
-            memory: 100Mi
+            memory: 20Mi
         command:
           - /usr/local/bin/codetestapi-exe
