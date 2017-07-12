@@ -20,6 +20,7 @@ import           System.Random
 type Timestamp = Integer
 
 type API = "drone"   :> Get '[JSON] Drone
+      :<|> "package" :> Get '[JSON] Package
 
 data Location = Location
   { latitude  :: Double
@@ -61,14 +62,12 @@ randomDrone ts = Drone
 randIO :: (MonadIO m) => Rand StdGen a -> m a
 randIO r = liftIO . getStdRandom $ \gen -> runRand r gen
 
-randomDrone' :: MonadIO m => Timestamp -> m Drone
-randomDrone' ts = randIO $ randomDrone ts
-
 api :: Proxy API
 api = Proxy
 
 server :: Server API
-server = randomDrone' 1000
+server = randIO (randomDrone 1000)
+    :<|> randIO (randomPackage 1000)
 
 app :: Application
 app = serve api server
