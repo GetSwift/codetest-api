@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: codetest-api
+  labels:
+    app: codetest-api
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: codetest-api
+    spec:
+      containers:
+      - image: 335125930084.dkr.ecr.us-east-1.amazonaws.com/codetest-api:latest
+        tty: false
+        imagePullPolicy: Always
+        name: codetest-api
+        resources:
+          limits:
+            cpu: 50m
+            memory: 100Mi
+          requests:
+            cpu: 50m
+            memory: 100Mi
+        command:
+          - /usr/local/bin/codetestapi-exe
