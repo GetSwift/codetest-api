@@ -2,15 +2,14 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
-module Lib where
+module Api where
 
 import           Control.Monad.IO.Class
 import           Control.Monad.Random
 import           Data.Aeson
+import           Data.List
 import           Data.Proxy
-import           Data.Text                as T (Text)
-import qualified Data.Text                as T
-import           Data.Text.IO             as T (readFile, writeFile)
+import           Data.Time.Clock.POSIX
 import           GHC.Generics
 import           Network.Wai
 import           Network.Wai.Handler.Warp
@@ -21,6 +20,8 @@ type Timestamp = Integer
 
 type API = "drone"   :> Get '[JSON] Drone
       :<|> "package" :> Get '[JSON] Package
+      :<|> "drones" :> Get '[JSON] [Drone]
+      :<|> "packages" :> Get '[JSON] [Package]
 
 data Location = Location
   { latitude  :: Double
@@ -34,6 +35,10 @@ data Package = Package
   , deadline    :: Timestamp
   } deriving (Generic, Show)
 instance ToJSON Package
+instance Ord Package where
+  (Package pId1 _ _) `compare` (Package pId2 _ _) = pId1 `compare` pId2
+instance Eq Package where
+  (Package pId1 _ _) == (Package pId2 _ _) = pId1 == pId2
 
 data Drone = Drone
   { droneId  :: Integer
@@ -41,6 +46,10 @@ data Drone = Drone
   , packages :: [Package]
   } deriving (Generic, Show)
 instance ToJSON Drone
+instance Ord Drone where
+  (Drone dId1 _ _) `compare` (Drone dId2 _ _) = dId1 `compare` dId2
+instance Eq Drone where
+  (Drone dId1 _ _) == (Drone dId2 _ _) = dId1 == dId2
 
 randomLocation :: RandomGen g => Rand g Location
 randomLocation = Location
@@ -53,11 +62,17 @@ randomPackage ts = Package
   <*> randomLocation
   <*> getRandomR (ts + 360, ts + 3600)
 
-randomDrone :: RandomGen g => Timestamp -> Rand g Drone
-randomDrone ts = Drone
+randomDrone :: RandomGen g => Rand g Drone
+randomDrone = Drone
   <$> getRandomR (10000, 1000000)
   <*> randomLocation
   <*> pure []
+
+randomList :: (Ord a, RandomGen g) => Int -> Rand g a -> Rand g [a]
+randomList n r = do
+  n <- getRandomR (0, n)
+  withoutDupes <$> sequence (replicate n r)
+  where withoutDupes = map head . group . sort
 
 randIO :: (MonadIO m) => Rand StdGen a -> m a
 randIO r = liftIO . getStdRandom $ \gen -> runRand r gen
@@ -66,11 +81,16 @@ api :: Proxy API
 api = Proxy
 
 server :: Server API
-server = randIO (randomDrone 1000)
-    :<|> randIO (randomPackage 1000)
+server = randIO randomDrone
+    :<|> randIO (randomPackage 1500000000)
+    :<|> randIO (randomList 100 randomDrone)
+    :<|> do
+      ts <- liftIO $ round <$> getPOSIXTime
+      randIO (randomList 100 $ randomPackage ts)
+  where replicRand n r = randIO $ sequence (replicate n r)
 
 app :: Application
 app = serve api server
 
-someFunc :: IO ()
-someFunc = run 3000 app
+runApi :: IO ()
+runApi = run 3000 app

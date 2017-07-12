@@ -1,6 +1,5 @@
 module Main where
-
-import Lib
+import Api
 
 main :: IO ()
-main = someFunc
+main = runApi
